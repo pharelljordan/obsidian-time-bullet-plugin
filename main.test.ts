@@ -128,32 +128,32 @@ describe('TimeBulletPlugin', () => {
 
 		internals.handleSpaceInEditor(editor, event);
 
-		expect(editor.lines[0]).toBe('- [09:30] ');
+		expect(editor.lines[0]).toBe('[09:30] - ');
 		expect(editor.cursor).toEqual({
 			line: 0,
-			ch: '- [09:30] '.length,
+			ch: '[09:30] - '.length,
 		});
 		expect(event.defaultPrevented).toBe(true);
 	});
 
-	it('continues a timestamped list on enter', () => {
+	it('does not continue a timestamped list on enter', () => {
 		const { plugin } = createPlugin();
 		const internals = plugin as unknown as PluginInternals;
 		plugin.settings = { ...DEFAULT_SETTINGS };
 
 		vi.spyOn(internals, 'generateTimestamp').mockReturnValue('09:30');
 
-		const editor = new FakeEditor(['- [08:00] start', '- next'], { line: 1, ch: 2 });
+		const editor = new FakeEditor(['[08:00] - start', '- next'], { line: 1, ch: 2 });
 		const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
 
 		internals.handleEnterInEditor(editor, event);
 
-		expect(editor.lines[1]).toBe('- [09:30] next');
+		expect(editor.lines[1]).toBe('- next');
 		expect(editor.cursor).toEqual({
 			line: 1,
-			ch: 2 + '- [09:30]'.length - '-'.length,
+			ch: 2,
 		});
-		expect(event.defaultPrevented).toBe(true);
+		expect(event.defaultPrevented).toBe(false);
 	});
 
 	it('adds a time bullet to a regular bullet and keeps the cursor with the content', () => {
@@ -167,10 +167,10 @@ describe('TimeBulletPlugin', () => {
 
 		internals.toggleTimeBullet(editor);
 
-		expect(editor.lines[0]).toBe('- [09:30] task');
+		expect(editor.lines[0]).toBe('[09:30] - task');
 		expect(editor.cursor).toEqual({
 			line: 0,
-			ch: '- [09:30] '.length,
+			ch: '[09:30] - '.length,
 		});
 	});
 
@@ -185,7 +185,7 @@ describe('TimeBulletPlugin', () => {
 
 		internals.toggleTimeBullet(editor);
 
-		expect(editor.lines[0]).toBe('  - [09:30] task');
+		expect(editor.lines[0]).toBe('  [09:30] - task');
 		expect(editor.cursor).toEqual({
 			line: 0,
 			ch: 1,
@@ -203,10 +203,10 @@ describe('TimeBulletPlugin', () => {
 
 		internals.toggleTimeBullet(editor);
 
-		expect(editor.lines[0]).toBe('* [09:30] task');
+		expect(editor.lines[0]).toBe('[09:30] * task');
 		expect(editor.cursor).toEqual({
 			line: 0,
-			ch: '* [09:30] '.length,
+			ch: '[09:30] * '.length,
 		});
 
 		internals.toggleTimeBullet(editor);
@@ -218,24 +218,24 @@ describe('TimeBulletPlugin', () => {
 		});
 	});
 
-	it('continues timestamped lists with the current bullet marker', () => {
+	it('does not continue timestamped lists with the current bullet marker on enter', () => {
 		const { plugin } = createPlugin();
 		const internals = plugin as unknown as PluginInternals;
 		plugin.settings = { ...DEFAULT_SETTINGS };
 
 		vi.spyOn(internals, 'generateTimestamp').mockReturnValue('09:30');
 
-		const editor = new FakeEditor(['* [08:00] start', '* next'], { line: 1, ch: 2 });
+		const editor = new FakeEditor(['[08:00] * start', '* next'], { line: 1, ch: 2 });
 		const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
 
 		internals.handleEnterInEditor(editor, event);
 
-		expect(editor.lines[1]).toBe('* [09:30] next');
+		expect(editor.lines[1]).toBe('* next');
 		expect(editor.cursor).toEqual({
 			line: 1,
-			ch: '* [09:30] '.length,
+			ch: 2,
 		});
-		expect(event.defaultPrevented).toBe(true);
+		expect(event.defaultPrevented).toBe(false);
 	});
 
 	it('handles key events inside an existing popout document', async () => {
@@ -263,7 +263,7 @@ describe('TimeBulletPlugin', () => {
 
 			popoutDom.window.document.dispatchEvent(event);
 
-			expect(popoutEditor.lines[0]).toBe('- [09:30] ');
+			expect(popoutEditor.lines[0]).toBe('[09:30] - ');
 			expect(mainEditor.lines[0]).toBe('main');
 			expect(event.defaultPrevented).toBe(true);
 		} finally {
@@ -296,7 +296,7 @@ describe('TimeBulletPlugin', () => {
 
 			popoutDom.window.document.dispatchEvent(event);
 
-			expect(popoutEditor.lines[0]).toBe('- [09:30] ');
+			expect(popoutEditor.lines[0]).toBe('[09:30] - ');
 			expect(event.defaultPrevented).toBe(true);
 		} finally {
 			popoutDom.window.close();

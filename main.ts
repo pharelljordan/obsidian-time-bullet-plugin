@@ -2,6 +2,7 @@ import { Editor, MarkdownView, Plugin } from 'obsidian';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { Decoration, EditorView } from '@codemirror/view';
 import { TimeBulletSettingTab } from './time-bullet-setting-tab';
 
 interface TimeBulletPluginSettings {
@@ -33,7 +34,7 @@ export default class TimeBulletPlugin extends Plugin {
 	public settings: TimeBulletPluginSettings;
 	private readonly timeBulletPattern = '-[t]';
 	private readonly invalidFormatFallbackText = 'invalid_format';
-	private readonly timeBulletLinePattern = /^([-*+]) \[([^\]]+)\](.*)$/;
+	private readonly timeBulletLinePattern = /^\[([^\]]+)\] ([-*+])(.*)$/;
 	private readonly indentationPattern = /^(\s*)/;
 	private readonly bulletLinePattern = /^([-*+])(.*)$/;
 	private readonly registeredDocuments = new WeakSet<Document>();
@@ -132,7 +133,7 @@ export default class TimeBulletPlugin extends Plugin {
 		const currentLineContent = editor.getLine(currentLine);
 
 		if (currentLineContent.startsWith(this.timeBulletPattern)) {
-			const timeStampPrefix = `- [${this.generateTimestamp()}] `;
+			const timeStampPrefix = `[${this.generateTimestamp()}] - `;
 			const updatedLineContent = `${timeStampPrefix}${currentLineContent.slice(this.timeBulletPattern.length)}`;
 			editor.setLine(currentLine, updatedLineContent);
 
@@ -146,53 +147,7 @@ export default class TimeBulletPlugin extends Plugin {
 	}
 
 	private handleEnterInEditor(editor: Editor, event: KeyboardEvent) {
-		const cursor = editor.getCursor();
-		const currentLine = cursor.line;
-		const currentCursorCh = cursor.ch;
-
-		// Only proceed if we're not at the very first line
-		if (currentLine > 0) {
-			const previousLine = editor.getLine(currentLine - 1);
-
-			if (this.doesLineStartWithTimeBullet(previousLine)) {
-				const currentLineContent = editor.getLine(currentLine);
-				const indentation = this.getIndentation(currentLineContent);
-				const currentBullet = this.getBulletMatch(currentLineContent);
-
-				if (!currentBullet) {
-					return;
-				}
-
-				const currentLineWithoutIndentation = currentLineContent.slice(indentation.length);
-				const currentTimestamp = this.generateTimestamp();
-				const trimmedRestOfLine = currentBullet.restOfLine.trimStart();
-				const oldPrefixLength = currentLineWithoutIndentation.length - trimmedRestOfLine.length;
-				const newPrefixLength = `${currentBullet.marker} [${currentTimestamp}] `.length;
-				const updatedLineContent = this.buildTimeBulletLine(
-					indentation,
-					currentBullet.marker,
-					currentTimestamp,
-					currentBullet.restOfLine,
-				);
-
-				editor.setLine(currentLine, updatedLineContent);
-
-				const updatedCursorCh = this.calculateUpdatedCursorPosition(
-					currentCursorCh,
-					indentation.length,
-					oldPrefixLength,
-					newPrefixLength,
-					updatedLineContent.length,
-				);
-				editor.setCursor({
-					line: currentLine,
-					ch: updatedCursorCh,
-				});
-
-				// Prevent default Enter behavior to avoid creating an additional empty line
-				event.preventDefault();
-			}
-		}
+		// No special handling for time bullets on enter - stops automatic timestamp continuation
 	}
 
 	private doesLineStartWithTimeBullet(line: string) {
@@ -236,7 +191,7 @@ export default class TimeBulletPlugin extends Plugin {
 			return null;
 		}
 
-		const [, marker, timestamp, restOfLine] = match;
+		const [, timestamp, marker, restOfLine] = match;
 		if (!dayjs(timestamp, this.timeStampFormat, true).isValid()) {
 			return null;
 		}
@@ -255,7 +210,7 @@ export default class TimeBulletPlugin extends Plugin {
 
 	private buildTimeBulletLine(indent: string, marker: BulletMarker, timestamp: string, text: string): string {
 		const trimmedText = text.trimStart();
-		return trimmedText ? `${indent}${marker} [${timestamp}] ${trimmedText}` : `${indent}${marker} [${timestamp}] `;
+		return trimmedText ? `${indent}[${timestamp}] ${marker} ${trimmedText}` : `${indent}[${timestamp}] ${marker} `;
 	}
 
 	private calculateUpdatedCursorPosition(
@@ -316,7 +271,7 @@ export default class TimeBulletPlugin extends Plugin {
 		if (bulletMatch) {
 			const trimmedRestOfLine = bulletMatch.restOfLine.trimStart();
 			const oldPrefixLength = currentLineWithoutIndentation.length - trimmedRestOfLine.length;
-			const newPrefixLength = `${bulletMatch.marker} [${timestamp}] `.length;
+			const newPrefixLength = `[${timestamp}] ${bulletMatch.marker} `.length;
 			const updatedLineContent = this.buildTimeBulletLine(
 				indentation,
 				bulletMatch.marker,
@@ -339,7 +294,7 @@ export default class TimeBulletPlugin extends Plugin {
 		}
 
 		const updatedLineContent = this.buildTimeBulletLine(indentation, '-', timestamp, currentLineWithoutIndentation);
-		const newPrefixLength = `- [${timestamp}] `.length;
+		const newPrefixLength = `[${timestamp}] - `.length;
 		editor.setLine(currentLine, updatedLineContent);
 		editor.setCursor({
 			line: currentLine,
